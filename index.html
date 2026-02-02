@@ -527,7 +527,7 @@
             workbook.SheetNames.forEach((name, index) => {
                 const sheet = workbook.Sheets[name];
                 const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-                sheetData[name] = jsonData;
+                sheetData[name] = trimEmptyRows(jsonData);
                 
                 // Create tab
                 const tab = document.createElement('button');
@@ -536,11 +536,11 @@
                 tab.onclick = () => switchSheet(name);
                 sheetTabs.appendChild(tab);
                 
-                // Create preview with trimmed data
+                // Create preview
                 const preview = document.createElement('div');
                 preview.className = 'sheet-preview' + (index === 0 ? ' active' : '');
                 preview.id = `preview-${index}`;
-                preview.innerHTML = createTableHTML(trimEmptyRows(jsonData), name);
+                preview.innerHTML = createTableHTML(jsonData, name);
                 sheetPreviews.appendChild(preview);
             });
             
