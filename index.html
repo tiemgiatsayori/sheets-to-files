@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Split Excel – Chunked Download</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    button { margin: 6px 6px 6px 0; padding: 8px 12px; }
+    .group { margin-top: 15px; }
+  </style>
+</head>
+<body>
+
+<h2>Split Excel – Download in Groups of 10</h2>
+
+<input type="file" id="fileInput" accept=".xlsx,.xls" />
+<div id="buttons"></div>
+
+<script>
+const CHUNK_SIZE = 10;
+let generatedFiles = [];
+
+document.getElementById("fileInput").addEventListener("change", handleFile);
+
+async function handleFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  generatedFiles = [];
+  document.getElementById("buttons").innerHTML = "";
+
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: "array" });
+
+  workbook.SheetNames.forEach(sheetName => {
+    const sheet = workbook.Sheets[sheetName];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, sheet, sheetName);
+
+    const data = XLSX.write(wb, {
+      bookType: "xlsx",
+      type: "array"
+    });
+
+    generatedFiles.push({
+      name: `${sheetName}.xlsx`,
+      data
+    });
+  });
+
+  renderButtons();
+}
+
+function renderButtons() {
+  const container = document.getElementById("buttons");
+
+  for (let i = 0; i < generatedFiles.length; i += CHUNK_SIZE) {
+    const start = i + 1;
+    const end = Math.min(i + CHUNK_SIZE, generatedFiles.length);
+
+    const btn = document.createElement("button");
+    btn.textContent = `Download sheets ${start}–${end}`;
+    btn.onclick = () => downloadChunk(i, i + CHUNK_SIZE);
+
+    container.appendChild(btn);
+  }
+}
+
+function downloadChunk(from, to) {
+  generatedFiles.slice(from, to).forEach(file => {
+    const blob = new Blob([file.data], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    });
+
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = file.name;
+    document.body.appendChild(a);
+    a.click();
+
+    setTimeout(() => {
+      URL.revokeObjectURL(a.href);
+      document.body.removeChild(a);
+    }, 100);
+  });
+}
+</script>
+
+</body>
+</html>
