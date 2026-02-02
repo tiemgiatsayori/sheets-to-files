@@ -507,6 +507,17 @@
             reader.readAsBinaryString(file);
         }
 
+        function trimEmptyRows(data) {
+            if (!data || data.length === 0) return data;
+            let lastRowWithData = -1;
+            for (let i = data.length - 1; i >= 0; i--) {
+                const row = data[i];
+                const hasData = row && row.some(cell => cell !== null && cell !== undefined && cell !== '');
+                if (hasData) { lastRowWithData = i; break; }
+            }
+            return lastRowWithData >= 0 ? data.slice(0, lastRowWithData + 1) : [];
+        }
+
         function processWorkbook() {
             sheetData = {};
             generatedImages = {};
@@ -525,11 +536,11 @@
                 tab.onclick = () => switchSheet(name);
                 sheetTabs.appendChild(tab);
                 
-                // Create preview
+                // Create preview with trimmed data
                 const preview = document.createElement('div');
                 preview.className = 'sheet-preview' + (index === 0 ? ' active' : '');
                 preview.id = `preview-${index}`;
-                preview.innerHTML = createTableHTML(jsonData, name);
+                preview.innerHTML = createTableHTML(trimEmptyRows(jsonData), name);
                 sheetPreviews.appendChild(preview);
             });
             
@@ -593,44 +604,24 @@
 
         function createRenderTable(data, sheetName) {
             const wrapper = document.createElement('div');
-            wrapper.style.cssText = `
-                background: white;
-                padding: 20px;
-                border-radius: 12px;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-                display: inline-block;
-                min-width: 320px;
-            `;
+            wrapper.style.cssText = `background: white; display: inline-block;`;
             
             // Title
             const title = document.createElement('div');
-            title.style.cssText = `
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                padding: 12px 16px;
-                border-radius: 8px 8px 0 0;
-                font-weight: 600;
-                font-size: 14px;
-                margin: -20px -20px 15px -20px;
-            `;
+            title.style.cssText = `background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 12px; font-weight: 600; font-size: 12px;`;
             title.textContent = `📋 ${sheetName}`;
             wrapper.appendChild(title);
             
             if (data.length === 0) {
                 const empty = document.createElement('p');
-                empty.style.cssText = 'text-align: center; color: #888; padding: 40px;';
+                empty.style.cssText = 'text-align: center; color: #888; padding: 20px;';
                 empty.textContent = 'Sheet trống';
                 wrapper.appendChild(empty);
                 return wrapper;
             }
 
             const table = document.createElement('table');
-            table.style.cssText = `
-                border-collapse: collapse;
-                font-size: 12px;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                width: 100%;
-            `;
+            table.style.cssText = `border-collapse: collapse; font-size: 10px; font-family: Arial, sans-serif;`;
             
             // Header
             if (data.length > 0) {
@@ -638,15 +629,7 @@
                 const headerRow = document.createElement('tr');
                 data[0].forEach(cell => {
                     const th = document.createElement('th');
-                    th.style.cssText = `
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        color: white;
-                        padding: 10px 12px;
-                        text-align: left;
-                        font-weight: 600;
-                        border: 1px solid #5a6fd6;
-                        white-space: nowrap;
-                    `;
+                    th.style.cssText = `background: #5a67d8; color: white; padding: 4px 6px; text-align: left; font-weight: 600; border: 1px solid #4c51bf; white-space: nowrap;`;
                     th.textContent = String(cell || '');
                     headerRow.appendChild(th);
                 });
@@ -661,12 +644,7 @@
                 const rowLength = Math.max(data[i].length, data[0].length);
                 for (let j = 0; j < rowLength; j++) {
                     const td = document.createElement('td');
-                    td.style.cssText = `
-                        padding: 8px 12px;
-                        border: 1px solid #e0e0e0;
-                        background: ${i % 2 === 0 ? '#f8f9ff' : 'white'};
-                        white-space: nowrap;
-                    `;
+                    td.style.cssText = `padding: 3px 6px; border: 1px solid #ddd; background: ${i % 2 === 0 ? '#f7fafc' : 'white'}; white-space: nowrap;`;
                     const cell = data[i][j];
                     td.textContent = String(cell !== undefined && cell !== null ? cell : '');
                     row.appendChild(td);
