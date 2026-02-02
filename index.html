@@ -452,7 +452,6 @@
         const hiddenRender = document.getElementById('hiddenRender');
         const toast = document.getElementById('toast');
 
-        // Drag and drop events
         dropZone.addEventListener('click', () => fileInput.click());
         
         dropZone.addEventListener('dragover', (e) => {
@@ -527,20 +526,18 @@
             workbook.SheetNames.forEach((name, index) => {
                 const sheet = workbook.Sheets[name];
                 const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-                sheetData[name] = trimEmptyRows(jsonData);
+                sheetData[name] = jsonData;
                 
-                // Create tab
                 const tab = document.createElement('button');
                 tab.className = 'sheet-tab' + (index === 0 ? ' active' : '');
                 tab.textContent = name;
                 tab.onclick = () => switchSheet(name);
                 sheetTabs.appendChild(tab);
                 
-                // Create preview
                 const preview = document.createElement('div');
                 preview.className = 'sheet-preview' + (index === 0 ? ' active' : '');
                 preview.id = `preview-${index}`;
-                preview.innerHTML = createTableHTML(jsonData, name);
+                preview.innerHTML = createTableHTML(trimEmptyRows(jsonData), name);
                 sheetPreviews.appendChild(preview);
             });
             
@@ -557,7 +554,6 @@
             let html = `<div class="sheet-table-wrapper" id="table-${sheetName.replace(/\s+/g, '-')}">`;
             html += '<table class="sheet-table">';
             
-            // Header row
             if (data.length > 0) {
                 html += '<thead><tr>';
                 data[0].forEach(cell => {
@@ -566,7 +562,6 @@
                 html += '</tr></thead>';
             }
             
-            // Data rows
             html += '<tbody>';
             for (let i = 1; i < data.length; i++) {
                 html += '<tr>';
@@ -591,12 +586,10 @@
         function switchSheet(name) {
             currentSheet = name;
             
-            // Update tabs
             document.querySelectorAll('.sheet-tab').forEach((tab, index) => {
                 tab.classList.toggle('active', workbook.SheetNames[index] === name);
             });
             
-            // Update previews
             document.querySelectorAll('.sheet-preview').forEach((preview, index) => {
                 preview.classList.toggle('active', workbook.SheetNames[index] === name);
             });
@@ -606,7 +599,6 @@
             const wrapper = document.createElement('div');
             wrapper.style.cssText = `background: white; display: inline-block;`;
             
-            // Title
             const title = document.createElement('div');
             title.style.cssText = `background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 12px; font-weight: 600; font-size: 12px;`;
             title.textContent = `📋 ${sheetName}`;
@@ -623,7 +615,6 @@
             const table = document.createElement('table');
             table.style.cssText = `border-collapse: collapse; font-size: 10px; font-family: Arial, sans-serif;`;
             
-            // Header
             if (data.length > 0) {
                 const thead = document.createElement('thead');
                 const headerRow = document.createElement('tr');
@@ -637,7 +628,6 @@
                 table.appendChild(thead);
             }
             
-            // Body
             const tbody = document.createElement('tbody');
             for (let i = 1; i < data.length; i++) {
                 const row = document.createElement('tr');
@@ -662,18 +652,17 @@
                 return generatedImages[sheetName];
             }
 
-            const data = sheetData[sheetName];
+            const data = trimEmptyRows(sheetData[sheetName]);
             const renderElement = createRenderTable(data, sheetName);
             hiddenRender.innerHTML = '';
             hiddenRender.appendChild(renderElement);
             
-            // Wait for render
             await new Promise(resolve => setTimeout(resolve, 100));
             
             try {
                 const canvas = await html2canvas(renderElement, {
                     backgroundColor: '#ffffff',
-                    scale: 2, // Higher resolution for mobile
+                    scale: 2,
                     logging: false,
                     useCORS: true
                 });
@@ -731,7 +720,6 @@
                     const safeName = name.replace(/[/\\?%*:|"<>]/g, '-');
                     zip.file(`${safeName}.png`, blob);
                     
-                    // Small delay for UI update
                     await new Promise(resolve => setTimeout(resolve, 50));
                 }
                 
