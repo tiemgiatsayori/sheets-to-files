@@ -1,92 +1,772 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <title>Split Excel – Chunked Download</title>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    button { margin: 6px 6px 6px 0; padding: 8px 12px; }
-    .group { margin-top: 15px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chuyển đổi Excel sang Hình ảnh</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .upload-area {
+            background: white;
+            border-radius: 16px;
+            padding: 30px 20px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        
+        .upload-box {
+            border: 3px dashed #667eea;
+            border-radius: 12px;
+            padding: 40px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8f9ff;
+        }
+        
+        .upload-box:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+        
+        .upload-box.dragover {
+            border-color: #764ba2;
+            background: #e8ebff;
+            transform: scale(1.02);
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        .upload-text {
+            color: #555;
+            font-size: 1rem;
+            margin-bottom: 10px;
+        }
+        
+        .upload-hint {
+            color: #888;
+            font-size: 0.85rem;
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 30px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .file-info {
+            background: #f0f2ff;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .file-info.show {
+            display: block;
+        }
+        
+        .file-name {
+            font-weight: 600;
+            color: #333;
+            word-break: break-all;
+        }
+        
+        .sheet-count {
+            color: #667eea;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+        
+        .progress-container {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .progress-container.show {
+            display: block;
+        }
+        
+        .progress-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .progress-bar-container {
+            background: #e0e0e0;
+            border-radius: 10px;
+            height: 12px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        
+        .progress-bar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+        
+        .progress-text {
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .actions {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            display: none;
+            text-align: center;
+        }
+        
+        .actions.show {
+            display: block;
+        }
+        
+        .actions-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .sheets-container {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            display: none;
+        }
+        
+        .sheets-container.show {
+            display: block;
+        }
+        
+        .sheets-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .sheet-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+        
+        .sheet-tab {
+            background: #f0f2ff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #555;
+        }
+        
+        .sheet-tab:hover {
+            background: #e0e5ff;
+        }
+        
+        .sheet-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .preview-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .sheet-preview {
+            display: none;
+            padding: 10px;
+            background: #fafafa;
+            border-radius: 10px;
+        }
+        
+        .sheet-preview.active {
+            display: block;
+        }
+        
+        .sheet-table-wrapper {
+            min-width: min-content;
+        }
+        
+        .sheet-table {
+            border-collapse: collapse;
+            font-size: 11px;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .sheet-table th,
+        .sheet-table td {
+            border: 1px solid #e0e0e0;
+            padding: 8px 10px;
+            text-align: left;
+            white-space: nowrap;
+        }
+        
+        .sheet-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+        
+        .sheet-table tr:nth-child(even) {
+            background: #f8f9ff;
+        }
+        
+        .sheet-table tr:hover {
+            background: #e8ebff;
+        }
+        
+        .download-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 15px;
+        }
+        
+        .hidden-render {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .toast.show {
+            opacity: 1;
+        }
+        
+        @media (min-width: 768px) {
+            .container {
+                max-width: 900px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .upload-area {
+                padding: 40px;
+            }
+            
+            .upload-box {
+                padding: 60px 40px;
+            }
+            
+            .sheet-table {
+                font-size: 13px;
+            }
+            
+            .sheet-table th,
+            .sheet-table td {
+                padding: 10px 14px;
+            }
+        }
+    </style>
 </head>
 <body>
+    <div class="container">
+        <h1>📊 Chuyển đổi Excel sang Hình ảnh</h1>
+        
+        <div class="upload-area">
+            <div class="upload-box" id="dropZone">
+                <div class="upload-icon">📁</div>
+                <p class="upload-text">Kéo thả file Excel vào đây</p>
+                <p class="upload-hint">hoặc nhấn để chọn file (.xlsx, .xls)</p>
+            </div>
+            <input type="file" id="fileInput" accept=".xlsx,.xls">
+            
+            <div class="file-info" id="fileInfo">
+                <p class="file-name" id="fileName"></p>
+                <p class="sheet-count" id="sheetCount"></p>
+            </div>
+        </div>
+        
+        <div class="progress-container" id="progressContainer">
+            <p class="progress-title" id="progressTitle">Đang xử lý...</p>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <p class="progress-text" id="progressText">0%</p>
+        </div>
+        
+        <div class="actions" id="actionsContainer">
+            <p class="actions-title">Tải xuống hình ảnh</p>
+            <div class="btn-group">
+                <button class="btn" id="downloadAllBtn">
+                    📦 Tải tất cả (ZIP)
+                </button>
+                <button class="btn-secondary" id="downloadCurrentBtn">
+                    📷 Tải sheet hiện tại
+                </button>
+            </div>
+        </div>
+        
+        <div class="sheets-container" id="sheetsContainer">
+            <p class="sheets-title">Xem trước các Sheet</p>
+            <div class="sheet-tabs" id="sheetTabs"></div>
+            <div class="preview-container">
+                <div id="sheetPreviews"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="hiddenRender" class="hidden-render"></div>
+    <div class="toast" id="toast"></div>
 
-<h2>Split Excel – Download in Groups of 10</h2>
+    <script>
+        let workbook = null;
+        let sheetData = {};
+        let currentSheet = null;
+        let generatedImages = {};
 
-<input type="file" id="fileInput" accept=".xlsx,.xls" />
-<div id="buttons"></div>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const sheetCount = document.getElementById('sheetCount');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const progressTitle = document.getElementById('progressTitle');
+        const actionsContainer = document.getElementById('actionsContainer');
+        const sheetsContainer = document.getElementById('sheetsContainer');
+        const sheetTabs = document.getElementById('sheetTabs');
+        const sheetPreviews = document.getElementById('sheetPreviews');
+        const hiddenRender = document.getElementById('hiddenRender');
+        const toast = document.getElementById('toast');
 
-<script>
-const CHUNK_SIZE = 10;
-let generatedFiles = [];
+        // Drag and drop events
+        dropZone.addEventListener('click', () => fileInput.click());
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
 
-document.getElementById("fileInput").addEventListener("change", handleFile);
+        function showToast(message) {
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
 
-async function handleFile(e) {
-  const file = e.target.files[0];
-  if (!file) return;
+        function handleFile(file) {
+            if (!file.name.match(/\.(xlsx|xls)$/i)) {
+                showToast('Vui lòng chọn file Excel (.xlsx hoặc .xls)');
+                return;
+            }
 
-  generatedFiles = [];
-  document.getElementById("buttons").innerHTML = "";
+            fileName.textContent = `📄 ${file.name}`;
+            fileInfo.classList.add('show');
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    workbook = XLSX.read(e.target.result, { type: 'binary' });
+                    sheetCount.textContent = `📋 ${workbook.SheetNames.length} sheet được tìm thấy`;
+                    processWorkbook();
+                } catch (error) {
+                    showToast('Lỗi đọc file: ' + error.message);
+                }
+            };
+            reader.readAsBinaryString(file);
+        }
 
-  const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: "array" });
+        function processWorkbook() {
+            sheetData = {};
+            generatedImages = {};
+            sheetTabs.innerHTML = '';
+            sheetPreviews.innerHTML = '';
+            
+            workbook.SheetNames.forEach((name, index) => {
+                const sheet = workbook.Sheets[name];
+                const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+                sheetData[name] = jsonData;
+                
+                // Create tab
+                const tab = document.createElement('button');
+                tab.className = 'sheet-tab' + (index === 0 ? ' active' : '');
+                tab.textContent = name;
+                tab.onclick = () => switchSheet(name);
+                sheetTabs.appendChild(tab);
+                
+                // Create preview
+                const preview = document.createElement('div');
+                preview.className = 'sheet-preview' + (index === 0 ? ' active' : '');
+                preview.id = `preview-${index}`;
+                preview.innerHTML = createTableHTML(jsonData, name);
+                sheetPreviews.appendChild(preview);
+            });
+            
+            currentSheet = workbook.SheetNames[0];
+            sheetsContainer.classList.add('show');
+            actionsContainer.classList.add('show');
+        }
 
-  workbook.SheetNames.forEach(sheetName => {
-    const sheet = workbook.Sheets[sheetName];
+        function createTableHTML(data, sheetName) {
+            if (data.length === 0) {
+                return '<p style="text-align: center; color: #888; padding: 20px;">Sheet trống</p>';
+            }
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, sheet, sheetName);
+            let html = `<div class="sheet-table-wrapper" id="table-${sheetName.replace(/\s+/g, '-')}">`;
+            html += '<table class="sheet-table">';
+            
+            // Header row
+            if (data.length > 0) {
+                html += '<thead><tr>';
+                data[0].forEach(cell => {
+                    html += `<th>${escapeHtml(String(cell || ''))}</th>`;
+                });
+                html += '</tr></thead>';
+            }
+            
+            // Data rows
+            html += '<tbody>';
+            for (let i = 1; i < data.length; i++) {
+                html += '<tr>';
+                const rowLength = Math.max(data[i].length, data[0].length);
+                for (let j = 0; j < rowLength; j++) {
+                    const cell = data[i][j];
+                    html += `<td>${escapeHtml(String(cell !== undefined && cell !== null ? cell : ''))}</td>`;
+                }
+                html += '</tr>';
+            }
+            html += '</tbody></table></div>';
+            
+            return html;
+        }
 
-    const data = XLSX.write(wb, {
-      bookType: "xlsx",
-      type: "array"
-    });
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
 
-    generatedFiles.push({
-      name: `${sheetName}.xlsx`,
-      data
-    });
-  });
+        function switchSheet(name) {
+            currentSheet = name;
+            
+            // Update tabs
+            document.querySelectorAll('.sheet-tab').forEach((tab, index) => {
+                tab.classList.toggle('active', workbook.SheetNames[index] === name);
+            });
+            
+            // Update previews
+            document.querySelectorAll('.sheet-preview').forEach((preview, index) => {
+                preview.classList.toggle('active', workbook.SheetNames[index] === name);
+            });
+        }
 
-  renderButtons();
-}
+        function createRenderTable(data, sheetName) {
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = `
+                background: white;
+                padding: 20px;
+                border-radius: 12px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+                display: inline-block;
+                min-width: 320px;
+            `;
+            
+            // Title
+            const title = document.createElement('div');
+            title.style.cssText = `
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 12px 16px;
+                border-radius: 8px 8px 0 0;
+                font-weight: 600;
+                font-size: 14px;
+                margin: -20px -20px 15px -20px;
+            `;
+            title.textContent = `📋 ${sheetName}`;
+            wrapper.appendChild(title);
+            
+            if (data.length === 0) {
+                const empty = document.createElement('p');
+                empty.style.cssText = 'text-align: center; color: #888; padding: 40px;';
+                empty.textContent = 'Sheet trống';
+                wrapper.appendChild(empty);
+                return wrapper;
+            }
 
-function renderButtons() {
-  const container = document.getElementById("buttons");
+            const table = document.createElement('table');
+            table.style.cssText = `
+                border-collapse: collapse;
+                font-size: 12px;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                width: 100%;
+            `;
+            
+            // Header
+            if (data.length > 0) {
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+                data[0].forEach(cell => {
+                    const th = document.createElement('th');
+                    th.style.cssText = `
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 10px 12px;
+                        text-align: left;
+                        font-weight: 600;
+                        border: 1px solid #5a6fd6;
+                        white-space: nowrap;
+                    `;
+                    th.textContent = String(cell || '');
+                    headerRow.appendChild(th);
+                });
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+            }
+            
+            // Body
+            const tbody = document.createElement('tbody');
+            for (let i = 1; i < data.length; i++) {
+                const row = document.createElement('tr');
+                const rowLength = Math.max(data[i].length, data[0].length);
+                for (let j = 0; j < rowLength; j++) {
+                    const td = document.createElement('td');
+                    td.style.cssText = `
+                        padding: 8px 12px;
+                        border: 1px solid #e0e0e0;
+                        background: ${i % 2 === 0 ? '#f8f9ff' : 'white'};
+                        white-space: nowrap;
+                    `;
+                    const cell = data[i][j];
+                    td.textContent = String(cell !== undefined && cell !== null ? cell : '');
+                    row.appendChild(td);
+                }
+                tbody.appendChild(row);
+            }
+            table.appendChild(tbody);
+            wrapper.appendChild(table);
+            
+            return wrapper;
+        }
 
-  for (let i = 0; i < generatedFiles.length; i += CHUNK_SIZE) {
-    const start = i + 1;
-    const end = Math.min(i + CHUNK_SIZE, generatedFiles.length);
+        async function generateImage(sheetName) {
+            if (generatedImages[sheetName]) {
+                return generatedImages[sheetName];
+            }
 
-    const btn = document.createElement("button");
-    btn.textContent = `Download sheets ${start}–${end}`;
-    btn.onclick = () => downloadChunk(i, i + CHUNK_SIZE);
+            const data = sheetData[sheetName];
+            const renderElement = createRenderTable(data, sheetName);
+            hiddenRender.innerHTML = '';
+            hiddenRender.appendChild(renderElement);
+            
+            // Wait for render
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            try {
+                const canvas = await html2canvas(renderElement, {
+                    backgroundColor: '#ffffff',
+                    scale: 2, // Higher resolution for mobile
+                    logging: false,
+                    useCORS: true
+                });
+                
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                generatedImages[sheetName] = blob;
+                return blob;
+            } catch (error) {
+                console.error('Error generating image:', error);
+                throw error;
+            }
+        }
 
-    container.appendChild(btn);
-  }
-}
+        document.getElementById('downloadCurrentBtn').addEventListener('click', async () => {
+            if (!currentSheet) return;
+            
+            progressContainer.classList.add('show');
+            progressTitle.textContent = `Đang tạo hình ảnh: ${currentSheet}`;
+            progressBar.style.width = '50%';
+            progressText.textContent = '50%';
+            
+            try {
+                const blob = await generateImage(currentSheet);
+                progressBar.style.width = '100%';
+                progressText.textContent = '100%';
+                
+                const safeName = currentSheet.replace(/[/\\?%*:|"<>]/g, '-');
+                saveAs(blob, `${safeName}.png`);
+                showToast(`Đã tải xuống: ${currentSheet}.png`);
+            } catch (error) {
+                showToast('Lỗi tạo hình ảnh: ' + error.message);
+            }
+            
+            setTimeout(() => progressContainer.classList.remove('show'), 500);
+        });
 
-function downloadChunk(from, to) {
-  generatedFiles.slice(from, to).forEach(file => {
-    const blob = new Blob([file.data], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    });
-
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = file.name;
-    document.body.appendChild(a);
-    a.click();
-
-    setTimeout(() => {
-      URL.revokeObjectURL(a.href);
-      document.body.removeChild(a);
-    }, 100);
-  });
-}
-</script>
-
+        document.getElementById('downloadAllBtn').addEventListener('click', async () => {
+            if (!workbook) return;
+            
+            const zip = new JSZip();
+            const total = workbook.SheetNames.length;
+            
+            progressContainer.classList.add('show');
+            progressTitle.textContent = 'Đang tạo hình ảnh cho tất cả sheet...';
+            
+            try {
+                for (let i = 0; i < total; i++) {
+                    const name = workbook.SheetNames[i];
+                    progressTitle.textContent = `Đang xử lý: ${name}`;
+                    const progress = Math.round(((i + 1) / total) * 100);
+                    progressBar.style.width = `${progress}%`;
+                    progressText.textContent = `${i + 1}/${total} (${progress}%)`;
+                    
+                    const blob = await generateImage(name);
+                    const safeName = name.replace(/[/\\?%*:|"<>]/g, '-');
+                    zip.file(`${safeName}.png`, blob);
+                    
+                    // Small delay for UI update
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+                
+                progressTitle.textContent = 'Đang tạo file ZIP...';
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                saveAs(zipBlob, 'excel-sheets-images.zip');
+                showToast(`Đã tải xuống ${total} hình ảnh trong file ZIP`);
+            } catch (error) {
+                showToast('Lỗi: ' + error.message);
+            }
+            
+            setTimeout(() => progressContainer.classList.remove('show'), 500);
+        });
+    </script>
 </body>
 </html>
