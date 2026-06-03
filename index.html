@@ -647,29 +647,38 @@
             table.appendChild(tbody);
             wrapper.appendChild(table);
             
-            // QR bank info section
-            const BANK_KEY = 'bidv'; // Key from BanksObject
-            const ACCOUNT_NO = '1440092290';
-            const ACCOUNT_NAME = 'LAM QUANG CUONG';
-            const bankInfo = BanksObject[BANK_KEY];
-            
-            // Find "Thực lãnh" amount from sheet data
+            // QR bank info section - read bank key, account number, and amount from sheet data
             let thucLanhAmount = null;
+            let bankKey = null;
+            let accountNo = null;
             for (let i = 0; i < data.length; i++) {
                 for (let j = 0; j < (data[i] || []).length; j++) {
-                    if (String(data[i][j] || '').trim() === 'Thực lãnh' && j + 1 < data[i].length) {
-                        const raw = data[i][j + 1];
-                        const num = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(/[,.\s]/g, ''));
-                        if (!isNaN(num) && num > 0) thucLanhAmount = num;
+                    if (String(data[i][j] || '').trim() === 'Thực lãnh') {
+                        // Amount is in the cell to the right
+                        if (j + 1 < data[i].length) {
+                            const raw = data[i][j + 1];
+                            const num = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(/[,.\s]/g, ''));
+                            if (!isNaN(num) && num > 0) thucLanhAmount = num;
+                        }
+                        // Bank key is in column B (index 1) of the same row
+                        bankKey = String(data[i][1] || '').trim().toLowerCase();
+                        // Account number is in column B (index 1) of the previous row
+                        if (i > 0) accountNo = String(data[i - 1][1] || '').trim();
                         break;
                     }
                 }
-                if (thucLanhAmount !== null) break;
+                if (bankKey) break;
             }
+
+            // Fallback if not found in sheet
+            if (!bankKey) bankKey = 'bidv';
+            if (!accountNo) accountNo = '1440092290';
+            const bankInfo = BanksObject[bankKey];
+            if (!bankInfo) { wrapper.appendChild(document.createTextNode('Không tìm thấy ngân hàng: ' + bankKey)); return wrapper; }
 
             const qrOptions = {
                 bankBin: bankInfo.bin,
-                bankNumber: ACCOUNT_NO,
+                bankNumber: accountNo,
                 purpose: 'Chuyen tien',
             };
             if (thucLanhAmount !== null) qrOptions.amount = String(thucLanhAmount);
@@ -695,8 +704,7 @@
                 ? `<div><b>Số tiền:</b> ${thucLanhAmount.toLocaleString('vi-VN')} đ</div>` : '';
             qrInfo.innerHTML = `<div style="font-weight:700;font-size:12px;">Thông tin chuyển khoản</div>`
                 + `<div><b>Ngân hàng:</b> ${bankInfo.shortName}</div>`
-                + `<div><b>Số TK:</b> ${ACCOUNT_NO}</div>`
-                + `<div><b>Chủ TK:</b> ${ACCOUNT_NAME}</div>`
+                + `<div><b>Số TK:</b> ${accountNo}</div>`
                 + amountLine;
             qrSection.appendChild(qrInfo);
             
