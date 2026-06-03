@@ -653,11 +653,27 @@
             const ACCOUNT_NAME = 'LAM QUANG CUONG';
             const bankInfo = BanksObject[BANK_KEY];
             
-            const qrPay = QRPay.initVietQR({
+            // Find "Thực lãnh" amount from sheet data
+            let thucLanhAmount = null;
+            for (let i = 0; i < data.length; i++) {
+                for (let j = 0; j < (data[i] || []).length; j++) {
+                    if (String(data[i][j] || '').trim() === 'Thực lãnh' && j + 1 < data[i].length) {
+                        const raw = data[i][j + 1];
+                        const num = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(/[,.\s]/g, ''));
+                        if (!isNaN(num) && num > 0) thucLanhAmount = num;
+                        break;
+                    }
+                }
+                if (thucLanhAmount !== null) break;
+            }
+
+            const qrOptions = {
                 bankBin: bankInfo.bin,
                 bankNumber: ACCOUNT_NO,
-                purpose: 'Chuyen luong',
-            });
+                purpose: 'Chuyen tien',
+            };
+            if (thucLanhAmount !== null) qrOptions.amount = String(thucLanhAmount);
+            const qrPay = QRPay.initVietQR(qrOptions);
             const vietQRPayload = qrPay.build();
             
             const qrSection = document.createElement('div');
@@ -675,10 +691,13 @@
             
             const qrInfo = document.createElement('div');
             qrInfo.style.cssText = 'font-family: Arial, sans-serif; font-size: 11px; line-height: 1.6;';
+            const amountLine = thucLanhAmount !== null
+                ? `<div><b>Số tiền:</b> ${thucLanhAmount.toLocaleString('vi-VN')} đ</div>` : '';
             qrInfo.innerHTML = `<div style="font-weight:700;font-size:12px;">Thông tin chuyển khoản</div>`
                 + `<div><b>Ngân hàng:</b> ${bankInfo.shortName}</div>`
                 + `<div><b>Số TK:</b> ${ACCOUNT_NO}</div>`
-                + `<div><b>Chủ TK:</b> ${ACCOUNT_NAME}</div>`;
+                + `<div><b>Chủ TK:</b> ${ACCOUNT_NAME}</div>`
+                + amountLine;
             qrSection.appendChild(qrInfo);
             
             wrapper.appendChild(qrSection);
