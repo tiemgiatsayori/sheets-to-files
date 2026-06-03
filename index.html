@@ -8,6 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -430,7 +431,9 @@
     <div id="hiddenRender" class="hidden-render"></div>
     <div class="toast" id="toast"></div>
 
-    <script>
+    <script type="module">
+        import { QRPay, BanksObject } from 'https://esm.run/vietnam-qr-pay@1.5.0';
+
         let workbook = null;
         let sheetData = {};
         let currentSheet = null;
@@ -644,6 +647,69 @@
             table.appendChild(tbody);
             wrapper.appendChild(table);
             
+            // QR bank info section - read bank key, account number, and amount from sheet data
+            let thucLanhAmount = null;
+            let bankKey = null;
+            let accountNo = null;
+            for (let i = 0; i < data.length; i++) {
+                for (let j = 0; j < (data[i] || []).length; j++) {
+                    if (String(data[i][j] || '').trim() === 'Thực lãnh') {
+                        // Amount is in the cell to the right
+                        if (j + 1 < data[i].length) {
+                            const raw = data[i][j + 1];
+                            const num = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(/[,.\s]/g, ''));
+                            if (!isNaN(num) && num > 0) thucLanhAmount = num;
+                        }
+                        // Bank key is in column B (index 1) of the same row
+                        bankKey = String(data[i][1] || '').trim().toLowerCase();
+                        // Account number is in column B (index 1) of the previous row
+                        if (i > 0) accountNo = String(data[i - 1][1] || '').trim();
+                        break;
+                    }
+                }
+                if (bankKey) break;
+            }
+
+            // Fallback if not found in sheet
+            if (!bankKey) bankKey = 'bidv';
+            if (!accountNo) accountNo = '1440092290';
+            const bankInfo = BanksObject[bankKey];
+            if (!bankInfo) { wrapper.appendChild(document.createTextNode('Không tìm thấy ngân hàng: ' + bankKey)); return wrapper; }
+
+            const qrOptions = {
+                bankBin: bankInfo.bin,
+                bankNumber: accountNo,
+                purpose: 'Chuyen tien',
+            };
+            if (thucLanhAmount !== null) qrOptions.amount = String(thucLanhAmount);
+            const qrPay = QRPay.initVietQR(qrOptions);
+            const vietQRPayload = qrPay.build();
+            
+            const qrSection = document.createElement('div');
+            qrSection.style.cssText = 'display: flex; align-items: center; gap: 12px; padding: 10px; margin-top: 2px; background: white; border: 1px solid #ddd; border-top: none;';
+            
+            const qrContainer = document.createElement('div');
+            qrContainer.style.cssText = 'width: 120px; height: 120px; flex-shrink: 0;';
+            new QRCode(qrContainer, {
+                text: vietQRPayload,
+                width: 120,
+                height: 120,
+                correctLevel: QRCode.CorrectLevel.M
+            });
+            qrSection.appendChild(qrContainer);
+            
+            const qrInfo = document.createElement('div');
+            qrInfo.style.cssText = 'font-family: Arial, sans-serif; font-size: 11px; line-height: 1.6;';
+            const amountLine = thucLanhAmount !== null
+                ? `<div><b>Số tiền:</b> ${thucLanhAmount.toLocaleString('vi-VN')} đ</div>` : '';
+            qrInfo.innerHTML = `<div style="font-weight:700;font-size:12px;">Thông tin chuyển khoản</div>`
+                + `<div><b>Ngân hàng:</b> ${bankInfo.shortName}</div>`
+                + `<div><b>Số TK:</b> ${accountNo}</div>`
+                + amountLine;
+            qrSection.appendChild(qrInfo);
+            
+            wrapper.appendChild(qrSection);
+            
             return wrapper;
         }
 
@@ -657,7 +723,18 @@
             hiddenRender.innerHTML = '';
             hiddenRender.appendChild(renderElement);
             
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // Wait for QR image to load
+            const imgs = renderElement.querySelectorAll('img');
+            if (imgs.length > 0) {
+                await Promise.all(Array.from(imgs).map(img => {
+                    if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+                    return new Promise(resolve => {
+                        img.onload = resolve;
+                        img.onerror = resolve;
+                    });
+                }));
+            }
+            await new Promise(resolve => setTimeout(resolve, 200));
             
             try {
                 const canvas = await html2canvas(renderElement, {
