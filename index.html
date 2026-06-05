@@ -432,12 +432,34 @@
     <div class="toast" id="toast"></div>
 
     <script type="module">
-        import { QRPay, BanksObject } from 'https://esm.run/vietnam-qr-pay@1.5.0';
+        import { QRPay } from 'https://esm.run/vietnam-qr-pay@1.5.0';
 
         let workbook = null;
         let sheetData = {};
         let currentSheet = null;
         let generatedImages = {};
+
+        // Bank lookup sourced from vietqr.io (same source used to fill the Excel file).
+        // Keyed by lowercased `code` (the value stored in the sheet).
+        let bankMap = null;
+        let bankLoadPromise = null;
+        async function ensureBanksLoaded() {
+            if (bankMap) return bankMap;
+            if (!bankLoadPromise) {
+                bankLoadPromise = (async () => {
+                    const res = await fetch('https://api.vietqr.io/v2/banks');
+                    if (!res.ok) throw new Error('Không tải được danh sách ngân hàng');
+                    const json = await res.json();
+                    const map = {};
+                    for (const b of (json.data || [])) {
+                        if (b.code) map[String(b.code).trim().toLowerCase()] = b;
+                    }
+                    bankMap = map;
+                    return map;
+                })();
+            }
+            return bankLoadPromise;
+        }
 
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
@@ -673,7 +695,7 @@
             // Fallback if not found in sheet
             if (!bankKey) bankKey = 'bidv';
             if (!accountNo) accountNo = '1440092290';
-            const bankInfo = BanksObject[bankKey];
+            const bankInfo = (bankMap || {})[bankKey];
             if (!bankInfo) { wrapper.appendChild(document.createTextNode('Không tìm thấy ngân hàng: ' + bankKey)); return wrapper; }
 
             const qrOptions = {
@@ -719,6 +741,7 @@
             }
 
             const data = trimEmptyRows(sheetData[sheetName]);
+            await ensureBanksLoaded();
             const renderElement = createRenderTable(data, sheetName);
             hiddenRender.innerHTML = '';
             hiddenRender.appendChild(renderElement);
