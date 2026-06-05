@@ -692,11 +692,20 @@
                 if (bankKey) break;
             }
 
-            // Fallback if not found in sheet
-            if (!bankKey) bankKey = 'bidv';
-            if (!accountNo) accountNo = '1440092290';
+            // No fallback: if the sheet is missing the bank key or account, show an
+            // error on the image instead of defaulting to a specific account.
+            const showQrError = (message) => {
+                const errBox = document.createElement('div');
+                errBox.style.cssText = 'padding: 10px; margin-top: 2px; background: #fff5f5; border: 1px solid #fc8181; border-top: none; color: #c53030; font-family: Arial, sans-serif; font-size: 11px;';
+                errBox.textContent = '⚠️ ' + message;
+                wrapper.appendChild(errBox);
+                return wrapper;
+            };
+
+            if (!bankKey) return showQrError('Không tìm thấy mã ngân hàng trong sheet');
+            if (!accountNo) return showQrError('Không tìm thấy số tài khoản trong sheet');
             const bankInfo = (bankMap || {})[bankKey];
-            if (!bankInfo) { wrapper.appendChild(document.createTextNode('Không tìm thấy ngân hàng: ' + bankKey)); return wrapper; }
+            if (!bankInfo) return showQrError('Không tìm thấy ngân hàng: ' + bankKey);
 
             const qrOptions = {
                 bankBin: bankInfo.bin,
