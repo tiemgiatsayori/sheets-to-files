@@ -702,8 +702,8 @@
                 return wrapper;
             };
 
-            if (!bankKey) return showQrError('Không tìm thấy mã ngân hàng trong sheet');
-            if (!accountNo) return showQrError('Không tìm thấy số tài khoản trong sheet');
+            if (!bankKey) return showQrError('Không tìm thấy mã ngân hàng');
+            if (!accountNo) return showQrError('Không tìm thấy số tài khoản');
             const bankInfo = (bankMap || {})[bankKey];
             if (!bankInfo) return showQrError('Không tìm thấy ngân hàng: ' + bankKey);
 
